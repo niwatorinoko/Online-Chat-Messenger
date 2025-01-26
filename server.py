@@ -101,9 +101,14 @@ class UDPServer:
             token = body[room_name_size:room_name_size + token_size]
             message = body[room_name_size + token_size:].decode("utf-8")
 
+            # トークン検証
             if token not in self.clients_map:
                 self.sock.sendto(b"Invalid token", client_address)
                 continue
+
+            # クライアントアドレスを更新
+            if self.clients_map[token][0] != client_address:
+                self.clients_map[token][0] = client_address
 
             username = self.clients_map[token][2]
             formatted_message = f"{username}: {message}"  # 発言者名を追加
@@ -111,10 +116,14 @@ class UDPServer:
 
     def relay_message(self, room_name, message):
         """リレーシステム: ルーム内の全メンバーにメッセージを送信"""
+        print(f"リレー: {message} (ルーム: {room_name})")
         for token in self.room_members_map.get(room_name, []):
             client_address = self.clients_map[token][0]
             if client_address:
+                print(f"送信先: {client_address}")
                 self.sock.sendto(message.encode(), client_address)
+            else:
+                print(f"トークン {token.hex()} のアドレスが登録されていません")
 
     def start(self):
         threading.Thread(target=self.handle_message).start()
